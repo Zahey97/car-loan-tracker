@@ -1,12 +1,10 @@
 import React from 'react';
 import type { User, LoanInfo } from '../types';
 import Card from './Card';
-import LogoutIcon from './icons/LogoutIcon';
 
 interface ProfileProps {
   user: User;
   loanInfo: LoanInfo;
-  onLogout: () => void;
 }
 
 const currencyFormatter = new Intl.NumberFormat('en-MY', {
@@ -14,7 +12,7 @@ const currencyFormatter = new Intl.NumberFormat('en-MY', {
   currency: 'MYR',
 });
 
-const Profile: React.FC<ProfileProps> = ({ user, loanInfo, onLogout }) => {
+const Profile: React.FC<ProfileProps> = ({ user, loanInfo }) => {
   const totalLoan = loanInfo.principal + loanInfo.totalUnearnedProfit;
 
   return (
@@ -87,14 +85,6 @@ const Profile: React.FC<ProfileProps> = ({ user, loanInfo, onLogout }) => {
             </div>
         </div>
       </Card>
-
-      <button
-        onClick={onLogout}
-        className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-600 transition duration-200"
-      >
-        <LogoutIcon />
-        Sign Out
-      </button>
     </div>
   );
 };

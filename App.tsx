@@ -6,14 +6,18 @@ import Dashboard from './components/Dashboard';
 import AmortizationScheduleTable from './components/AmortizationScheduleTable';
 import PaymentHistoryList from './components/PaymentHistoryList';
 import Profile from './components/Profile';
-import Login from './components/Login';
 import HomeIcon from './components/icons/HomeIcon';
 import CalendarIcon from './components/icons/CalendarIcon';
 import HistoryIcon from './components/icons/HistoryIcon';
 import UserIcon from './components/icons/UserIcon';
 
+const currentUser: User = {
+  name: 'Zaki Mohamed',
+  email: 'zakibg2008@gmail.com',
+  photoURL: `https://lh3.googleusercontent.com/a-/ALV-UjWiss3i9gBN4C5uHYVaulVyt1cXCFrwiXJKsrGzleuAf_I4wn8kgA=s300-p-k-rw-no`,
+};
+
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [payments, setPayments] = useState<Payment[]>([]);
 
@@ -32,18 +36,7 @@ const App: React.FC = () => {
     );
   };
 
-  const handleLogin = (loggedInUser: User) => {
-    setUser(loggedInUser);
-    setActiveTab('dashboard'); // Reset to dashboard on login
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-  };
-
   const renderContent = () => {
-    if (!user) return null; // Should not happen if main content is rendered
-
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard summary={loanData.summary} chartData={loanData.chartData} />;
@@ -52,7 +45,7 @@ const App: React.FC = () => {
       case 'history':
         return <PaymentHistoryList payments={payments} onAddPayment={handleAddPayment} onUpdatePayment={handleUpdatePayment} />;
       case 'profile':
-        return <Profile user={user} loanInfo={INITIAL_LOAN_INFO} onLogout={handleLogout} />;
+        return <Profile user={currentUser} loanInfo={INITIAL_LOAN_INFO} />;
       default:
         return <Dashboard summary={loanData.summary} chartData={loanData.chartData} />;
     }
@@ -73,10 +66,6 @@ const App: React.FC = () => {
     );
   };
 
-  if (!user) {
-    return <Login onLogin={handleLogin} />;
-  }
-  
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col">
       <header className="bg-white shadow-md sticky top-0 z-10">
