@@ -8,13 +8,14 @@ export interface LoanInfo {
   tenureMonths: number;
   monthlyInstalment: number;
   paymentDueDate: number;
+  firstPaymentDate: string; // YYYY-MM-DD
   totalUnearnedProfit: number;
   principal: number;
 }
 
 export interface AmortizationEntry {
   month: number;
-  paymentDate: string;
+  paymentDate: string; // This is the due date
   monthlyInstalment: number;
   principalComponent: number;
   profitComponent: number;
@@ -23,6 +24,7 @@ export interface AmortizationEntry {
   totalOutstanding: number;
   paid: boolean;
   paidAmount: number;
+  actualPaymentDate?: string; // The date the payment was actually made
   paymentId?: string;
 }
 
@@ -37,6 +39,7 @@ export interface Payment {
 export interface LoanSummary {
   outstandingBalance: number;
   remainingMonths: number;
+  totalTenureMonths: number;
   nextPaymentDueDate: string;
   totalPaid: number;
   principalPaid: number;
@@ -47,12 +50,18 @@ export interface LoanSummary {
   remainingProfit: number;
 }
 
-export type Tab = 'dashboard' | 'schedule' | 'history';
+export type Tab = 'dashboard' | 'schedule' | 'history' | 'profile';
 
 export interface ChartDataPoint {
   month: number;
   name: string;
-  principalPaid: number;
-  profitPaid: number;
+  cumulativeInstalment: number;
+  cumulativePaid: number;
   remainingBalance: number;
+}
+
+export interface User {
+    name: string;
+    email: string;
+    photoURL: string;
 }

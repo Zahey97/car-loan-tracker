@@ -1,17 +1,16 @@
-
 import { useMemo } from 'react';
 import type { LoanInfo, Payment, AmortizationEntry, LoanSummary, ChartDataPoint } from '../types';
 
 // Rule of 78 Calculation Logic for AITAB
 const calculateAitabSchedule = (loanInfo: LoanInfo): AmortizationEntry[] => {
-  const { tenureMonths, monthlyInstalment, totalUnearnedProfit, principal } = loanInfo;
+  const { tenureMonths, monthlyInstalment, totalUnearnedProfit, principal, firstPaymentDate } = loanInfo;
   
   const sumOfDigits = (tenureMonths * (tenureMonths + 1)) / 2;
   const schedule: AmortizationEntry[] = [];
   let currentPrincipal = principal;
   let currentProfit = totalUnearnedProfit;
 
-  const today = new Date();
+  const firstPayment = new Date(`${firstPaymentDate}T00:00:00Z`); // Treat as UTC
 
   for (let i = 1; i <= tenureMonths; i++) {
     const profitPortion = ((tenureMonths - i + 1) / sumOfDigits) * totalUnearnedProfit;
@@ -20,13 +19,13 @@ const calculateAitabSchedule = (loanInfo: LoanInfo): AmortizationEntry[] => {
     currentPrincipal -= principalPortion;
     currentProfit -= profitPortion;
     
-    // Estimate payment date
-    const paymentDate = new Date(today.getFullYear(), today.getMonth() + i -1, loanInfo.paymentDueDate);
-
+    // Calculate payment date by adding months to the first payment date
+    const paymentDate = new Date(firstPayment);
+    paymentDate.setUTCMonth(paymentDate.getUTCMonth() + i - 1);
 
     schedule.push({
       month: i,
-      paymentDate: paymentDate.toLocaleDateString('en-CA'),
+      paymentDate: paymentDate.toISOString().split('T')[0], // YYYY-MM-DD format
       monthlyInstalment,
       principalComponent: principalPortion,
       profitComponent: profitPortion,
@@ -72,6 +71,7 @@ export const useAitabLoan = (loanInfo: LoanInfo, payments: Payment[]) => {
             nextUnpaidEntry.paid = true;
             nextUnpaidEntry.paidAmount = payment.amount;
             nextUnpaidEntry.paymentId = payment.id;
+            nextUnpaidEntry.actualPaymentDate = payment.paymentDate; // Record the actual payment date
             principalPaid += nextUnpaidEntry.principalComponent;
             profitPaid += nextUnpaidEntry.profitComponent;
 
@@ -80,27 +80,26 @@ export const useAitabLoan = (loanInfo: LoanInfo, payments: Payment[]) => {
         }
     });
 
-    const lastPaidEntry = updatedSchedule.slice().reverse().find(e => e.paid);
     const firstUnpaidEntry = updatedSchedule.find(e => !e.paid);
 
-    const outstandingBalance = firstUnpaidEntry ? firstUnpaidEntry.totalOutstanding + firstUnpaidEntry.monthlyInstalment : (lastPaidEntry ? lastPaidEntry.totalOutstanding : loanInfo.principal + loanInfo.totalUnearnedProfit);
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalLoanAmount = loanInfo.principal + loanInfo.totalUnearnedProfit;
+    const outstandingBalance = totalLoanAmount - totalPaid;
+
     const remainingMonths = updatedSchedule.filter(e => !e.paid).length;
     
-    const today = new Date();
     const nextPaymentDate = firstUnpaidEntry
-      ? new Date(firstUnpaidEntry.paymentDate)
-      : new Date(today.getFullYear(), today.getMonth() + 1, loanInfo.paymentDueDate);
-    
-    // Ensure next payment date is in the future
-    while (nextPaymentDate < today && remainingMonths > 0) {
-        nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-    }
+      ? new Date(`${firstUnpaidEntry.paymentDate}T00:00:00Z`) // Use UTC to avoid timezone shift
+      : null;
 
     const summary: LoanSummary = {
         outstandingBalance,
         remainingMonths,
-        nextPaymentDueDate: nextPaymentDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric'}),
-        totalPaid: payments.reduce((sum, p) => sum + p.amount, 0),
+        totalTenureMonths: loanInfo.tenureMonths,
+        nextPaymentDueDate: nextPaymentDate
+          ? nextPaymentDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+          : 'Fully Paid',
+        totalPaid,
         principalPaid,
         profitPaid,
         totalPrincipal: loanInfo.principal,
@@ -109,23 +108,36 @@ export const useAitabLoan = (loanInfo: LoanInfo, payments: Payment[]) => {
         remainingProfit: loanInfo.totalUnearnedProfit - profitPaid,
     };
     
-    const chartData: ChartDataPoint[] = updatedSchedule.map(entry => ({
-      month: entry.month,
-      name: `M${entry.month}`,
-      principalPaid: entry.paid ? entry.principalComponent : 0,
-      profitPaid: entry.paid ? entry.profitComponent : 0,
-      remainingBalance: entry.totalOutstanding,
-    })).reduce<ChartDataPoint[]>((acc, current) => {
-        if (acc.length > 0) {
-            const last = acc[acc.length - 1];
-            current.principalPaid += last.principalPaid;
-            current.profitPaid += last.profitPaid;
-        }
-        acc.push(current);
-        return acc;
-    }, []);
+    const scheduleWithInitialState = [...updatedSchedule];
+    const initialEntry: AmortizationEntry = {
+      month: 0,
+      paymentDate: '',
+      monthlyInstalment: 0,
+      principalComponent: 0,
+      profitComponent: 0,
+      remainingPrincipal: loanInfo.principal,
+      remainingProfit: loanInfo.totalUnearnedProfit,
+      totalOutstanding: loanInfo.principal + loanInfo.totalUnearnedProfit,
+      paid: false,
+      paidAmount: 0,
+    };
+    scheduleWithInitialState.unshift(initialEntry);
 
-    return { schedule: updatedSchedule, summary, chartData };
+    let cumulativeInstalment = 0;
+    let cumulativePaid = 0;
+    const chartData: ChartDataPoint[] = scheduleWithInitialState.map(entry => {
+      cumulativeInstalment += entry.monthlyInstalment;
+      cumulativePaid += entry.paidAmount;
+      return {
+        month: entry.month,
+        name: `M${entry.month}`,
+        cumulativeInstalment,
+        cumulativePaid,
+        remainingBalance: entry.totalOutstanding,
+      };
+    });
+
+    return { schedule: scheduleWithInitialState, summary, chartData };
   }, [loanInfo, payments]);
 
   return processedLoanData;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { LoanSummary, ChartDataPoint } from '../types';
 import Card from './Card';
 
@@ -14,31 +14,23 @@ const currencyFormatter = new Intl.NumberFormat('en-MY', {
 });
 
 const Dashboard: React.FC<DashboardProps> = ({ summary, chartData }) => {
-  const dateParts = summary.nextPaymentDueDate ? summary.nextPaymentDueDate.split(' ') : [];
-  const dayAndMonth = dateParts.length >= 2 ? `${dateParts[0]} ${dateParts[1]}` : summary.nextPaymentDueDate;
-  const year = dateParts.length >= 3 ? dateParts[2] : '';
-
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Card title="Total Loan">
           <p className="text-2xl font-bold text-slate-800">{currencyFormatter.format(62565.48)}</p>
         </Card>
-        <Card title="Total Paid">
-          <p className="text-2xl font-bold text-green-600">{currencyFormatter.format(summary.totalPaid)}</p>
-        </Card>
         <Card title="Outstanding Balance">
           <p className="text-2xl font-bold text-blue-600">{currencyFormatter.format(summary.outstandingBalance)}</p>
         </Card>
-        <Card title="Next Payment Due">
-          <div>
-            <p className="text-xl font-bold text-red-600 leading-tight">{dayAndMonth}</p>
-            {year && <p className="text-xl font-bold text-red-600 leading-tight">{year}</p>}
-          </div>
-        </Card>
         <Card title="Remaining Months">
           <p className="text-2xl font-bold text-slate-700">{summary.remainingMonths}</p>
-          <p className="text-sm text-slate-500 mt-1">out of {summary.totalTenureMonths} months</p>
+        </Card>
+        <Card title="Next Payment Due">
+          <p className="text-lg font-semibold text-red-600">{summary.nextPaymentDueDate}</p>
+        </Card>
+        <Card title="Total Paid">
+          <p className="text-2xl font-bold text-green-600">{currencyFormatter.format(summary.totalPaid)}</p>
         </Card>
       </div>
 
@@ -49,7 +41,7 @@ const Dashboard: React.FC<DashboardProps> = ({ summary, chartData }) => {
                 data={chartData}
                 margin={{
                 top: 5,
-                right: 30,
+                right: 20,
                 left: 30,
                 bottom: 5,
                 }}
@@ -66,9 +58,9 @@ const Dashboard: React.FC<DashboardProps> = ({ summary, chartData }) => {
                   }}
                   />
                 <Legend />
-                <Area type="monotone" dataKey="remainingBalance" stroke="#ef4444" fill="#f87171" fillOpacity={0.6} name="Remaining Balance" />
-                <Line type="monotone" dataKey="cumulativePaid" stroke="#10b981" dot={false} strokeWidth={2} name="Cumulative Paid" />
-                <Line type="monotone" dataKey="cumulativeInstalment" stroke="#3b82f6" strokeDasharray="5 5" dot={false} name="Scheduled Payment Total" />
+                <Area type="monotone" dataKey="principalPaid" stackId="1" stroke="#3b82f6" fill="#60a5fa" name="Principal Paid" />
+                <Area type="monotone" dataKey="profitPaid" stackId="1" stroke="#10b981" fill="#34d399" name="Profit Paid" />
+                <Area type="monotone" dataKey="remainingBalance" stroke="#ef4444" fill="#f87171" name="Remaining Balance" />
             </AreaChart>
             </ResponsiveContainer>
         </div>
